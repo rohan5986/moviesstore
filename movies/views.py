@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Movie, Review
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
+from django.db.models import Q
 
 def index(request):
     search_term = request.GET.get('search')
@@ -9,13 +11,17 @@ def index(request):
     else:
         movies = Movie.objects.all()
 
+    # Hide movies with no stock left (if amount_left is set)
+    movies = movies.filter(Q(amount_left__isnull=True) | Q(amount_left__gt=0))
+
     template_data = {}
     template_data['title'] = 'Movies'
     template_data['movies'] = movies
     return render(request, 'movies/index.html', {'template_data': template_data})
 
+
 def show(request, id):
-    movie = Movie.objects.get(id=id)
+    movie = get_object_or_404(Movie, id=id)
     reviews = Review.objects.filter(movie=movie)
 
     template_data = {}
@@ -23,6 +29,20 @@ def show(request, id):
     template_data['movie'] = movie
     template_data['reviews'] = reviews
     return render(request, 'movies/show.html', {'template_data': template_data})
+
+
+@login_required
+def purchase_movie(request, id):
+    """Simulates a purchase by reducing amount_left."""
+    movie = get_object_or_404(Movie, id=id)
+    if movie.amount_left is not None:
+        if movie.amount_left > 0:
+            movie.amount_left -= 1
+            movie.save()
+        else:
+            return HttpResponseForbidden("This movie is out of stock.")
+    return redirect('movies.show', id=id)
+
 
 @login_required
 def create_review(request, id):
@@ -36,6 +56,7 @@ def create_review(request, id):
         return redirect('movies.show', id=id)
     else:
         return redirect('movies.show', id=id)
+
 
 @login_required
 def edit_review(request, id, review_id):
@@ -55,6 +76,7 @@ def edit_review(request, id, review_id):
         return redirect('movies.show', id=id)
     else:
         return redirect('movies.show', id=id)
+
 
 @login_required
 def delete_review(request, id, review_id):

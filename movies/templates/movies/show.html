@@ -9,6 +9,11 @@
         <hr />
         <p><b>Description:</b> {{ template_data.movie.description }}</p>
         <p><b>Price:</b> ${{ template_data.movie.price }}</p>
+
+        {% if template_data.movie.amount_left is not None %}
+          <p><b>Amount left:</b> {{ template_data.movie.amount_left }}</p>
+        {% endif %}
+
         <p class="card-text">
           <form method="post" action="{% url 'cart.add' id=template_data.movie.id %}">
             <div class="row">
@@ -20,13 +25,27 @@
                 </div>
               </div>
               <div class="col-auto">
-                <button class="btn bg-dark text-white" type="submit">Add to cart</button>
+                <button class="btn bg-dark text-white" type="submit"
+                  {% if template_data.movie.amount_left == 0 %}disabled{% endif %}>
+                  Add to cart
+                </button>
               </div>
             </div>
           </form>
         </p>
 
-        <h2>Reviews</h2>
+        {% if user.is_authenticated %}
+          {% if template_data.movie.amount_left is None or template_data.movie.amount_left > 0 %}
+            <form method="post" action="{% url 'movies.purchase_movie' template_data.movie.id %}">
+              {% csrf_token %}
+              <button class="btn btn-success mt-2">Purchase Now</button>
+            </form>
+          {% else %}
+            <p class="text-danger mt-2"><b>Out of Stock</b></p>
+          {% endif %}
+        {% endif %}
+
+        <h2 class="mt-4">Reviews</h2>
         <hr />
         <ul class="list-group">
           {% for review in template_data.reviews %}
